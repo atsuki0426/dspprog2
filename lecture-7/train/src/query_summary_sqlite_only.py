@@ -20,7 +20,13 @@ def main():
     conn = sqlite3.connect(args.db)
     cur = conn.cursor()
 
-    # 路線別
+    # table check
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (args.table,))
+    if cur.fetchone() is None:
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+        tables = [r[0] for r in cur.fetchall()]
+        raise SystemExit(f"ERROR: table '{args.table}' not found. tables={tables}")
+
     q1 = f"""
       SELECT
         railway_name AS railway,
@@ -33,9 +39,7 @@ def main():
     """
     cur.execute(q1)
     rows1 = cur.fetchall()
-    print("\n[summary_by_railway] saved rows =", len(rows1))
 
-    # 時間別（JST想定のcreated_at文字列から時だけ抜く）
     q2 = f"""
       SELECT
         CAST(SUBSTR(created_at, 12, 2) AS INTEGER) AS hour_jst,
@@ -48,7 +52,6 @@ def main():
     """
     cur.execute(q2)
     rows2 = cur.fetchall()
-    print("[summary_by_hour_jst] saved rows =", len(rows2))
 
     conn.close()
 
@@ -58,10 +61,9 @@ def main():
     write_csv(out1, ["railway", "n", "n_abnormal", "abnormal_rate"], rows1)
     write_csv(out2, ["hour_jst", "n", "n_abnormal", "abnormal_rate"], rows2)
 
-    print("\nSaved:")
+    print("Saved:")
     print(" -", out1)
     print(" -", out2)
 
 if __name__ == "__main__":
     main()
-    
